@@ -1,0 +1,25 @@
+# Python Bytecode files
+*.pyc
+__pycache__/
+
+# Compiled objects (C extensions)
+*.so
+*.pyd
+
+# Operating System Files
+.DS_Store
+Thumbs.db
+
+# Virtual Environments
+venv/
+env/
+.venv/
+
+# Editor/IDE Folders and Files
+.vscode/
+.idea/
+*.swp
+*~
+
+# Python generated runtime files
+pygame/high_scores.txt
