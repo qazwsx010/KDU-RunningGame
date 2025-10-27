@@ -30,9 +30,9 @@ def ble_data_callback(sender, data):
         rms_score = sp.calculate_rms_score(processed_data['movement_a'])
 
         # ⭐️ 실시간 출력 (Raw Data와 필터링 결과 모두 표시)
-        print(f"BLE <- Raw A({raw_data['ax']}, {raw_data['ay']}, {raw_data['az']}) | "
+        """print(f"BLE <- Raw A({raw_data['ax']}, {raw_data['ay']}, {raw_data['az']}) | "
               f"Mov_A: {processed_data['movement_a']:.4f} | "
-              f"RMS Score: {rms_score:.4f} ({len(sp.RMS_BUFFER)}/{config.RMS_N_SAMPLES})")
+              f"RMS Score: {rms_score:.4f} ({len(sp.RMS_BUFFER)}/{config.RMS_N_SAMPLES})")"""
 
     except json.JSONDecodeError:
         print("BLE Error: Received malformed JSON.")
@@ -134,8 +134,8 @@ def tcp_server_thread():
         message = json.dumps(data_to_send) + '\n' 
         
         # ⭐️ 실시간 출력
-        print(f"TCP -> RMS Score: {current_rms_score:.4f} | Target Speed: {target_speed:.4f} | "
-              f"Applied Speed: {current_applied_speed:.4f}")
+        """print(f"TCP -> RMS Score: {current_rms_score:.4f} | Target Speed: {target_speed:.4f} | "
+              f"Applied Speed: {current_applied_speed:.4f}")"""
         
         # 6. 클라이언트 전송
         clients_to_remove = []
@@ -161,7 +161,7 @@ async def ble_run():
     tcp_thread.start()
     
     while True:
-        print(f"\nBLE: Searching for {' or '.join(TARGET_NAMES)}...")
+        print(f"\n블루투스 찾는중 {' or '.join(TARGET_NAMES)}...")
         try:
             devices = await BleakScanner.discover(timeout=5.0)
         except Exception as e:
@@ -177,17 +177,17 @@ async def ble_run():
                 break
 
         if target is None:
-            print(f"BLE: Neither {' or '.join(TARGET_NAMES)} found. Retrying in 5s...")
+            print(f"블루투스 검색 실패. 5초후 재시도")
             await asyncio.sleep(5)
             continue
 
         try:
             # target 변수에 일치하는 기기가 저장되어 있습니다.
             async with BleakClient(target.address) as client:
-                print(f"BLE: Connected to {target.name} at {target.address}")
+                print(f"블루투스 연결 성공\n이름 : {target.name}\n주소 : {target.address}\n")
                 
                 await client.start_notify(BLE_CHARACTERISTIC_UUID, ble_data_callback)
-                print("BLE: Receiving notifications... Press Ctrl+C to exit")
+                print(f"블루투스로 데이터 받는중... \nctrl+C로 종료")
 
                 while client.is_connected:
                     await asyncio.sleep(1)
