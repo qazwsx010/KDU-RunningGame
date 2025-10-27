@@ -18,10 +18,10 @@ SCREEN_WIDTH, SCREEN_HEIGHT = screen.get_size()
 FPS = 60
 
 # 트랙 기하학 설정
-y_ai = SCREEN_HEIGHT * 0.25 
+y_ai = SCREEN_HEIGHT * 0.3 
 y_player = SCREEN_HEIGHT * 0.75 
 LINE_THICKNESS = 3
-start_x = SCREEN_WIDTH * 0.05 
+start_x = SCREEN_WIDTH * 0.00 
 end_x = SCREEN_WIDTH * 0.95 
 
 # 상수 가져오기
@@ -59,11 +59,19 @@ PLAYER_FRAME_DURATION_MS = config_utils.AI_FRAME_DURATION_MS
 # ----------------- 게임 핵심 함수 -----------------
 
 def draw_track():
-    """트랙, 결승선 및 배경을 그립니다."""
-    screen.fill(config_utils.WHITE) 
-    pygame.draw.line(screen, config_utils.RED, (end_x, 0), (end_x, SCREEN_HEIGHT), LINE_THICKNESS + 2) 
+    if config_utils.BACKGROUND_IMAGE:
+        
+        scaled_bg = pygame.transform.scale(config_utils.BACKGROUND_IMAGE, (SCREEN_WIDTH, SCREEN_HEIGHT))
+        screen.blit(scaled_bg, (0, 0))
+            
+    else:
+        # 배경 이미지가 없으면 기본 흰색 배경으로 설정
+        screen.fill(config_utils.WHITE)
+
+    # 2. ⭐️ 트랙 라인 그리기 (배경 위에) ⭐️
+    '''pygame.draw.line(screen, config_utils.RED, (end_x, 0), (end_x, SCREEN_HEIGHT), LINE_THICKNESS + 2) 
     pygame.draw.line(screen, config_utils.BLACK, (start_x, y_ai), (end_x, y_ai), LINE_THICKNESS)
-    pygame.draw.line(screen, config_utils.BLACK, (start_x, y_player), (end_x, y_player), LINE_THICKNESS)
+    pygame.draw.line(screen, config_utils.BLACK, (start_x, y_player), (end_x, y_player), LINE_THICKNESS)'''
 
 def reset_game():
     """게임 상태를 초기 상태로 되돌리고 카운트다운을 시작합니다."""
@@ -252,6 +260,12 @@ while running:
         time_text_display = f"TIME: {current_time:.2f}s"
         time_text = small_font.render(time_text_display, True, config_utils.BLACK)
         time_rect = time_text.get_rect(topright=(SCREEN_WIDTH - 20, 20))
+        # 텍스트가 그려질 영역에 반투명 배경을 그립니다.
+        s = pygame.Surface(time_rect.size, pygame.SRCALPHA)
+        s.fill((200, 200, 200, 150))
+        screen.blit(s, time_rect.topleft)
+        
+        # 💡 (2) 텍스트를 그립니다. 💡
         screen.blit(time_text, time_rect)
         
         pygame.display.flip()

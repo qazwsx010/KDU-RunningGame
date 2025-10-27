@@ -14,7 +14,8 @@ WHITE = (255, 255, 255)
 RED = (255, 0, 0) 
 
 # 캐릭터 및 속도 설정 (main_game에서 사용)
-BOX_SIZE = 50 * 4 
+# 💡 캐릭터 크기를 50 * 4 (200px)에서 50 * 6 (300px)로 키웠습니다.
+BOX_SIZE = 50 * 9 
 box_center_offset = (BOX_SIZE / 2)
 AI_SPEED = 0.5 * 3
 PLAYER_SPEED_CORRECTION = 0.22
@@ -26,111 +27,83 @@ ai_frames = []
 player_frames = [] 
 AI_FRAME_DURATION_MS = 0
 
-# ----------------- ⭐️ 로컬 파일 로딩 설정 (VS Code 환경용) -----------------
-# 💡 AI 프레임 경로: RunningGame/파이게임 -> ../리소스/AI_Runner
-RESOURCE_FOLDER = os.path.join("resource", "AICharacter") 
-AI_FRAME_BASE_NAME = "frame_" 
-AI_FRAME_START_INDEX = 0
-AI_FRAME_END_INDEX = 66 
+# ----------------- ⭐️ 로컬 파일 로딩 설정 (단일 이미지 사용) -----------------
+# 💡 배경 이미지 경로 resource/background.png 가정
+BACKGROUND_RESOURCE_FOLDER = os.path.join("resource")
+BACKGROUND_IMAGE_FILE = "background.png"
+BACKGROUND_IMAGE = None # 이미지가 로드될 변수
 
-# 💡 플레이어 프레임 경로 정의 (AI와 동일한 '리소스' 폴더 내의 'Player_Runner' 가정)
-PLAYER_RESOURCE_FOLDER = os.path.join("resource", "PlayerCharacter")
-PLAYER_FRAME_BASE_NAME = "frame_" 
-PLAYER_FRAME_START_INDEX = 0
-PLAYER_FRAME_END_INDEX = 34 
-# ----------------- ⭐️ Base64 폴백 이미지 (로컬 로드 실패 시 사용) -----------------
+# 💡 AI 이미지 경로: resource/Gyeongdong.png 가정
+RESOURCE_FOLDER = os.path.join("resource") 
+AI_IMAGE_FILE = "Gyeongdong.png" # AI 캐릭터의 단일 이미지 파일명
+FRAME_COUNT_REPLICATE = 67 # main_game.py의 인덱스 접근 오류 방지를 위해 복제할 프레임 수 (AI_FRAME_END_INDEX + 1)
+
+# 💡 플레이어 이미지 경로: resource/Ghost.png 가정
+PLAYER_RESOURCE_FOLDER = os.path.join("resource")
+PLAYER_IMAGE_FILE = "Ghost.png" # 플레이어 캐릭터의 단일 이미지 파일명
+
+# ----------------- ⭐️ Base64 폴백 이미지 (단일 이미지) -----------------
+# 🚨 이 Base64는 여전히 더미 이미지이므로, 실제 유령/사자 캐릭터의 Base64 데이터로 교체해야 합니다.
 AI_BASE64_IMAGE = "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAADElEQVR42mP4z8BQMAH+gYDFGBkAAIkBAj8Vd+sAAAAASUVORK5CYII="
 PLAYER_BASE64_IMAGE = "iVBORw0KGgoAAAANFAAAAACklEQVR42mP4/5+BQQAEEQoCAZ5QxQAAAABJRU5ErkJggg=="
 
 
-# ----------------- ⭐️ 로컬 파일 로딩 함수 (VS Code 환경용) -----------------
-def load_local_frames(folder_path, base_name, start_idx, end_idx, size):
-    """지정된 로컬 폴더에서 이미지 파일을 순차적으로 로드합니다."""
-    frames = []
-    
-    # 🚨 파일 이름에 5자리 0 채우기(zero-padding)를 적용하는 헬퍼 함수
-    def get_padded_filename(index):
-        # 예: index=0 -> "frame_00000.png"
-        return f"{base_name}{index:05d}.png"
+# ----------------- ⭐️ 단일 이미지 로딩 함수 -----------------
+def load_local_single_image(folder_path, file_name, size):
+    """지정된 로컬 폴더에서 단일 이미지 파일을 로드합니다."""
     
     # config_utils.py가 있는 절대 경로
     current_dir = os.path.dirname(os.path.abspath(__file__))
     
     # 🚨 경로 계산: 현재 디렉토리에서 한 단계 위 (..)로 올라가서 RESOURCE_FOLDER를 찾습니다.
-    full_folder_path = os.path.join(current_dir, "..", folder_path) 
+    # 만약 resource 폴더가 config_utils.py와 같은 폴더에 있다면 "..", 를 제거하세요.
+    full_path = os.path.join(current_dir, "..", folder_path, file_name) 
     
     print("-" * 50)
     print(f"1. config_utils.py 위치: {current_dir}")
-    # 💡 경로 문제 해결을 위해 os.path.normpath를 사용하여 경로를 정리합니다.
-    normalized_path = os.path.normpath(full_folder_path)
-    print(f"2. 계산된 에셋 폴더 경로 (정규화): {normalized_path}")
+    normalized_path = os.path.normpath(full_path)
+    print(f"2. 계산된 에셋 경로 (정규화): {normalized_path}")
     print("-" * 50)
 
-    if not os.path.isdir(normalized_path):
-        print(f"[ERROR] 🚫 폴더를 찾을 수 없음: {normalized_path}. Base64 폴백 사용.")
-        return []
+    if not os.path.exists(normalized_path):
+        print(f"[ERROR] 🚫 파일을 찾을 수 없음: {normalized_path}. Base64 폴백 시도.")
+        return None
     
     try:
-        # 첫 번째 파일만 테스트 로드 (00000으로 시작)
-        test_filename = get_padded_filename(start_idx) 
-        test_path = os.path.join(normalized_path, test_filename)
-        
-        if not os.path.exists(test_path):
-            print(f"[ERROR] 🚫 첫 번째 파일({test_filename}) 찾을 수 없음: {test_path}")
-            return []
-            
-        print(f"[INFO] ✅ 첫 번째 파일 로드 테스트 성공: {test_path}")
-
-        # 전체 파일 로드 시작 (0부터 66까지)
-        for i in range(start_idx, end_idx + 1):
-            filename = get_padded_filename(i) 
-            path = os.path.join(normalized_path, filename)
-            
-            if not os.path.exists(path):
-                print(f"[WARNING] 파일 없음: {path}. 로딩 중단.")
-                return [] 
-                
-            surf = pygame.image.load(path).convert_alpha()
-            scaled_surf = pygame.transform.scale(surf, (size, size))
-            frames.append(scaled_surf)
-        
-        print(f"[SUCCESS] 로컬 파일 시스템에서 {len(frames)}개의 프레임 로드 완료.")
-        return frames
+        surf = pygame.image.load(normalized_path).convert_alpha()
+        # 로드된 이미지를 지정된 크기(size)로 스케일링합니다.
+        scaled_surf = pygame.transform.scale(surf, (size, size))
+        print(f"[SUCCESS] 로컬 파일 시스템에서 단일 이미지 로드 완료: {file_name}")
+        return scaled_surf
     
     except pygame.error as e:
         print(f"[FALLBACK] ❌ 로컬 파일 로드 실패 (Pygame 에러: {e}). Base64 로드 시도.")
-        return []
+        return None
     except Exception as e:
         print(f"[ERROR] ❌ 로컬 파일 로드 중 기타 예외 발생: {e}")
-        return []
+        return None
 
-# ----------------- Base64 프레임 생성 함수 (폴백) -----------------
-def load_base64_frames(base64_data, frame_count, size, is_player=False):
-    """Base64 데이터를 로드하여 여러 프레임으로 복제 (애니메이션 시뮬레이션용)"""
+# ----------------- Base64 단일 이미지 로딩 함수 -----------------
+def load_base64_single_image(base64_data, size):
+    """Base64 데이터를 로드하여 단일 Pygame Surface를 반환합니다."""
     if not base64_data:
-        return []
+        return None
     
     try:
         image_data = base64.b64decode(base64_data)
         image_file = io.BytesIO(image_data)
-        # Pygame 로드 시도 (여기서 libpng 오류가 나는 경우, Base64 이미지 자체의 문제일 수 있습니다.)
         original_surf = pygame.image.load(image_file).convert_alpha() 
+        # 로드된 이미지를 지정된 크기(size)로 스케일링합니다.
         scaled_surf = pygame.transform.scale(original_surf, (size, size))
         
-        frames = []
-        for i in range(frame_count):
-            frame = scaled_surf.copy()
-            frames.append(frame)
-        
-        return frames
+        return scaled_surf
 
     except Exception as e:
-        # Base64 이미지 로드 오류 발생 시
         print(f"[ERROR] Base64 이미지 로드 실패: {e}. 컬러 박스로 대체됩니다.")
-        return []
+        return None
 
 # ----------------- 컬러 박스 프레임 생성 함수 (최후의 폴백) -----------------
-def create_temp_frames(colors, texts, size, frame_count=AI_FRAME_END_INDEX):
+def create_temp_frames(colors, texts, size, frame_count=FRAME_COUNT_REPLICATE):
     """애니메이션 시각화를 위해 색상과 텍스트가 변하는 Pygame Surface 프레임을 생성합니다 (최후의 폴백)."""
     frames = []
     size_tuple = (size, size)
@@ -151,8 +124,8 @@ def create_temp_frames(colors, texts, size, frame_count=AI_FRAME_END_INDEX):
         temp_colors = ai_temp_colors
         temp_texts = ai_temp_texts
     
-    # 🚨 프레임 수 계산 시 +1을 해서 총 67프레임이 되도록 함
-    for i in range(frame_count + 1): 
+    # 🚨 프레임 수 계산 (FRAME_COUNT_REPLICATE)
+    for i in range(frame_count): 
         surf = pygame.Surface(size_tuple, pygame.SRCALPHA)
         surf.fill(temp_colors[i % len(temp_colors)])
         text_surface = font.render(temp_texts[i % len(temp_colors)], True, WHITE)
@@ -166,40 +139,51 @@ def create_temp_frames(colors, texts, size, frame_count=AI_FRAME_END_INDEX):
 def init_assets(ai_size):
     """모든 에셋을 로드하고 config_utils 모듈의 전역 변수에 할당합니다."""
     global ai_image, player_image, ai_frames, player_frames, AI_FRAME_DURATION_MS
+    global BACKGROUND_IMAGE
+    # 1. AI 단일 이미지 로드 (로컬 파일 > Base64 > 컬러 박스 순)
     
-    # 1. AI 애니메이션 프레임 로드 시도 (로컬 파일 > Base64 > 컬러 박스 순)
-    ai_frames = load_local_frames(RESOURCE_FOLDER, AI_FRAME_BASE_NAME, AI_FRAME_START_INDEX, AI_FRAME_END_INDEX, ai_size)
+    # 1.1 로컬 파일 로드 시도
+    ai_surf = load_local_single_image(RESOURCE_FOLDER, AI_IMAGE_FILE, ai_size)
     
-    if not ai_frames:
-        # 로컬 파일 로드 실패 시 Base64 재시도 (이미지가 손상된 경우도 고려)
-        ai_frames = load_base64_frames(AI_BASE64_IMAGE, AI_FRAME_END_INDEX + 1, ai_size, is_player=False)
+    if ai_surf is None:
+        # 1.2 Base64 폴백 시도
+        ai_surf = load_base64_single_image(AI_BASE64_IMAGE, ai_size)
         
-        if not ai_frames:
+        if ai_surf is None:
+            # 1.3 최후의 폴백: 컬러 박스 생성
             print("[CRITICAL FALLBACK] AI 프레임: 컬러 박스 사용")
-            # 컬러 박스에 "AI" 텍스트를 넣기 위해 텍스트 인수로 구분
-            ai_frames = create_temp_frames([(255, 0, 0), (200, 50, 0)], ["AI", "GO"], ai_size, AI_FRAME_END_INDEX)
+            ai_frames = create_temp_frames([(255, 0, 0), (200, 50, 0)], ["AI", "GO"], ai_size, FRAME_COUNT_REPLICATE)
         else:
-            print("[FALLBACK] AI 프레임: Base64 이미지 사용 (단일 이미지 복제)")
+            print("[FALLBACK] AI 프레임: Base64 이미지 사용")
+            # 단일 이미지를 필요한 프레임 수만큼 복제하여 리스트에 채웁니다.
+            ai_frames = [ai_surf.copy() for _ in range(FRAME_COUNT_REPLICATE)]
     else:
-        print("[SUCCESS] AI 프레임: 로컬 67개 파일 로드 성공.")
+        print("[SUCCESS] AI 프레임: 로컬 단일 이미지 로드 성공.")
+        # 단일 이미지를 필요한 프레임 수만큼 복제하여 리스트에 채웁니다.
+        ai_frames = [ai_surf.copy() for _ in range(FRAME_COUNT_REPLICATE)]
     
-    # 2. 플레이어 애니메이션 프레임 로드 시도 (로컬 파일 > Base64 > 컬러 박스 순)
-    # 💡 AI와 동일한 로드 함수(load_local_frames)를 사용하되, 플레이어 전용 경로/이름/인덱스 상수를 사용
-    player_frames = load_local_frames(PLAYER_RESOURCE_FOLDER, PLAYER_FRAME_BASE_NAME, PLAYER_FRAME_START_INDEX, PLAYER_FRAME_END_INDEX, ai_size)
     
-    if not player_frames:
-        # 로컬 로드 실패 시 Base64 폴백 시도
-        player_frames = load_base64_frames(PLAYER_BASE64_IMAGE, AI_FRAME_END_INDEX + 1, ai_size, is_player=True) # 67개 프레임
+    # 2. 플레이어 단일 이미지 로드 (로컬 파일 > Base64 > 컬러 박스 순)
+    
+    # 2.1 로컬 파일 로드 시도
+    player_surf = load_local_single_image(PLAYER_RESOURCE_FOLDER, PLAYER_IMAGE_FILE, ai_size)
+    
+    if player_surf is None:
+        # 2.2 Base64 폴백 시도
+        player_surf = load_base64_single_image(PLAYER_BASE64_IMAGE, ai_size)
         
-        if not player_frames:
+        if player_surf is None:
+            # 2.3 최후의 폴백: 컬러 박스 생성
             print("[CRITICAL FALLBACK] 플레이어 프레임: 컬러 박스 사용")
-            # 컬러 박스에 "YOU" 텍스트를 넣기 위해 텍스트 인수로 구분
-            player_frames = create_temp_frames([(0, 0, 255), (0, 100, 255)], ["YOU", "RUN"], ai_size, AI_FRAME_END_INDEX)
+            player_frames = create_temp_frames([(0, 0, 255), (0, 100, 255)], ["YOU", "RUN"], ai_size, FRAME_COUNT_REPLICATE)
         else:
-            print("[FALLBACK] 플레이어 프레임: Base64 이미지 사용 (단일 이미지 복제)")
+            print("[FALLBACK] 플레이어 프레임: Base64 이미지 사용")
+            # 단일 이미지를 필요한 프레임 수만큼 복제하여 리스트에 채웁니다.
+            player_frames = [player_surf.copy() for _ in range(FRAME_COUNT_REPLICATE)]
     else:
-        print("[SUCCESS] 플레이어 프레임: 로컬 67개 파일 로드 성공.")
-
+        print("[SUCCESS] 플레이어 프레임: 로컬 단일 이미지 로드 성공.")
+        # 단일 이미지를 필요한 프레임 수만큼 복제하여 리스트에 채웁니다.
+        player_frames = [player_surf.copy() for _ in range(FRAME_COUNT_REPLICATE)]
     
     # 3. 각 프레임당 지속 시간 계산 (총 0.3초)
     total_frames = len(ai_frames)
@@ -208,9 +192,51 @@ def init_assets(ai_size):
     else:
         AI_FRAME_DURATION_MS = 1000 
         
-    # 4. 단일 이미지 변수 설정 (애니메이션 프레임의 첫 번째 요소 사용)
+    # 4. 단일 이미지 변수 설정 (복제된 프레임의 첫 번째 요소 사용)
     ai_image = ai_frames[0] if ai_frames else pygame.Surface((ai_size, ai_size))
     player_image = player_frames[0] if player_frames else pygame.Surface((ai_size, ai_size))
+
+    # ----------------- 5. ⭐️ 배경 이미지 로드 로직 추가 ⭐️ -----------------
+    print("--- 5. 배경 이미지 로드 시도 ---")
+    
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    # 🚨 AI/플레이어 이미지 로드 로직과 동일하게 상위 폴더 ("..")를 참조합니다.
+    # 즉, config_utils.py가 있는 폴더의 상위 폴더에서 resource를 찾습니다.
+    full_path = os.path.join(
+        current_dir, 
+        "..", # <- 이 부분이 핵심! (config_utils가 하위 폴더에 있을 경우)
+        BACKGROUND_RESOURCE_FOLDER, 
+        BACKGROUND_IMAGE_FILE
+    ) 
+    normalized_path = os.path.normpath(full_path)
+    
+    print(f"DEBUG: 배경 이미지 예상 경로: {normalized_path}")
+    
+    if os.path.exists(normalized_path):
+        try:
+            # 배경 이미지는 크기 조정 없이 원본을 로드하고 투명도 처리가 불필요하여 .convert() 사용
+            BACKGROUND_IMAGE = pygame.image.load(normalized_path).convert()
+            print(f"[SUCCESS] 배경 이미지 로컬 로드 완료: {normalized_path}")
+        except pygame.error as e:
+            print(f"[ERROR] ❌ 배경 이미지 로드 실패 (Pygame 에러: {e}). 배경 없음.")
+            BACKGROUND_IMAGE = None
+    else:
+        # 🚨 폴백: 만약 resource 폴더가 config_utils.py와 같은 폴더에 있다면 (상위 폴더 참조 불필요)
+        full_path_no_up = os.path.join(current_dir, BACKGROUND_RESOURCE_FOLDER, BACKGROUND_IMAGE_FILE)
+        normalized_path_no_up = os.path.normpath(full_path_no_up)
+        
+        if os.path.exists(normalized_path_no_up):
+             try:
+                BACKGROUND_IMAGE = pygame.image.load(normalized_path_no_up).convert()
+                print(f"[SUCCESS] 배경 이미지 로컬 로드 완료 (폴백 경로).")
+             except pygame.error as e:
+                print(f"[ERROR] ❌ 배경 이미지 로드 실패 (Pygame 에러: {e}). 배경 없음.")
+                BACKGROUND_IMAGE = None
+        else:
+            print(f"[ERROR] 🚫 배경 이미지 파일을 찾을 수 없음: {normalized_path} 또는 {normalized_path_no_up}. 배경 없음.")
+            BACKGROUND_IMAGE = None
+    # -----------------------------------------------------------------
 
 
 # ----------------- 랭킹 파일 처리 함수 -----------------
