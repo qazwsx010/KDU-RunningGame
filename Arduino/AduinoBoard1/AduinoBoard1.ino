@@ -1,4 +1,5 @@
 #include <Wire.h>
+#include <WiFi.h>
 #include <MPU6050.h>
 #include <BLEDevice.h>
 #include <BLEServer.h>
@@ -15,26 +16,32 @@ BLECharacteristic *pCharacteristic;
 // BLE 연결/해제 상태를 시리얼 모니터로 확인하기 위한 콜백 클래스
 class MyServerCallbacks: public BLEServerCallbacks {
     void onConnect(BLEServer* pServer) {
-      Serial.println("!!! Client Connected (BLE) !!!");
+      //Serial.println("!!! Client Connected (BLE) !!!");
     };
 
     void onDisconnect(BLEServer* pServer) {
-      Serial.println("!!! Client Disconnected - Restarting Advertising !!!");
+      //Serial.println("!!! Client Disconnected - Restarting Advertising !!!");
       BLEDevice::startAdvertising(); 
     }
 };
 
 
 void setup() {
-    Serial.begin(115200);
+    // ⭐ 1. CPU 클럭 속도 줄여 전력 소비 최소화 (240MHz -> 80MHz)
+    setCpuFrequencyMhz(100); 
+    
+    // ⭐ 2. Wi-Fi 무선 기능 완전 비활성화하여 대기 전력 차단
+    WiFi.mode(WIFI_OFF);
+    btStart(); // BLE가 Wi-Fi에 의해 꺼지지 않도록 명시적으로 시작
+    //Serial.begin(115200);
     Wire.begin();
 
     // MPU6050 초기화
     mpu.initialize();
     if (mpu.testConnection()) {
-        Serial.println("MPU6050 OK");
+        //Serial.println("MPU6050 OK");
     } else {
-        Serial.println("MPU6050 failed");
+        //Serial.println("MPU6050 failed");
     }
 
     // BLE 초기화
@@ -65,13 +72,13 @@ void setup() {
     pAdvertising->addServiceUUID(SERVICE_UUID);
     
     pAdvertising->start();
-    Serial.println("BLE advertising started with enhanced settings");
+    //Serial.println("BLE advertising started with enhanced settings");
 }
 
 void loop() {
     static unsigned long lastTime = 0;
     
-    if (millis() - lastTime >= 45) { // 45ms
+    if (millis() - lastTime >= 65) { // 45ms
         lastTime = millis();
 
         int16_t ax, ay, az, gx, gy, gz;
@@ -88,14 +95,14 @@ void loop() {
         gz /= SCALE_FACTOR;
 
         // JSON 문자열 생성
-        String jsonStr = "{\"ax\":" + String(ax) + ",\"ay\":" + String(ay) +
-                         ",\"az\":" + String(az) + ",\"gx\":" + String(gx) +
-                         ",\"gy\":" + String(gy) + ",\"gz\":" + String(gz) + "}";
+        char jsonStr[100];
+        snprintf(jsonStr, sizeof(jsonStr),
+            "{\"ax\":%d,\"ay\":%d,\"az\":%d,\"gx\":%d,\"gy\":%d,\"gz\":%d}",
+            ax, ay, az, gx, gy, gz);
 
-        // BLE로 전송
-        pCharacteristic->setValue(jsonStr.c_str());
+        pCharacteristic->setValue(jsonStr);
         pCharacteristic->notify();
 
-        Serial.println(jsonStr); // 센서 값 확인용
+        //Serial.println(jsonStr); // 센서 값 확인용
     }
 }
